@@ -88,7 +88,6 @@ float ddt_eT= 0.0;
 float iEt= 0.0;
 float actuation= 0.0;
 
-
 bool wanderActivated= false;
 bool wallFollowActivated= false;
 
@@ -144,7 +143,7 @@ void wallFollowController () {
      */
      if (behaviorState & MASK_WALLFOLLOW)  {
        Serial.println("wallFollowController:  activated");
-       // chassis.moveArch(10,25, true);
+       chassis.moveArch(10,25, true);
        chassis.turnFor(WALL_FOLLOW_TURNANGLE, WALL_FOLLOW_TURNRATE, true);
        behaviorState &= (~MASK_WALLFOLLOW);
      } else {
@@ -165,7 +164,7 @@ void wanderController() {
    *  activate wander only if approach controller
    *  and wall follow controllers are not active
    */
-  if ( behaviorState & MASK_WANDER) {
+  if (behaviorState & MASK_WANDER) {
     Serial.println("wanderController:  activated");
 
     Serial.print("wanderController:  selected turnAngle= ");
@@ -237,7 +236,7 @@ void approachController() {
     Serial.println(actuation);
 
     /**
-     *  If error ( eT_deltaT) is mall and magnitude of actuation is very small, just
+     *  If error ( eT_deltaT) is small and magnitude of actuation is very small, just
      *  call it zero.
      */
     if ( (fabs(actuation) < 0.2) || (fabs(eT_deltaT) < 0.1) ) { 
@@ -246,7 +245,6 @@ void approachController() {
       eT= 0.0;
       chassis.idle();
     } else {
-
       /**
        *  Note:  In chassis.driveFor(), the way to get it
        *         to move backwards is by using a negative
@@ -301,13 +299,13 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
-  while (true) {
-    // distance= rangefinder.getDistance();
-    // inches= distance * CM_TO_INCHES;
-    // Serial.println("rangefinder dist= ");
+  // while (true) {
+  //   // distance= rangefinder.getDistance();
+  //   // inches= distance * CM_TO_INCHES;
+  //   // Serial.println("rangefinder dist= ");
 
-    Serial.println(rangefinder.getDistance() * CM_TO_INCHES);
-  }
+  //   Serial.println(rangefinder.getDistance() * CM_TO_INCHES);
+  // }
 
   switch(state)  {
     case STATE_BEGIN:
@@ -361,17 +359,51 @@ void loop() {
          *  Test here turning on each
          *  basis behavior
          */
-        behaviorState|= MASK_APPROACH; 
-        approachController();
-        behaviorState &= (~MASK_APPROACH);
+        
+        // high   - wander
+        // medium - approach
+        // low    - wallFollow
 
-        //behaviorState|= MASK_WALLFOLLOW;
-        //wallFollowController();
-        //behaviorState&= (~MASK_WALLFOLLOW);
+        Serial.print("Before Choosing, meas = ");
+        Serial.println(meas);
 
-        //behaviorState|= MASK_WANDER;
-        //wanderController();
-        //behaviorState&= MASK_WANDER;
+        // if meas is greater than 9 in, wander
+        if (meas > ref + 3) {
+          behaviorState|= MASK_WANDER;
+          wanderController();
+          behaviorState&= MASK_WANDER;
+        }
+        // if meas is less than 9 in, approach until ref is reached
+        else {
+          behaviorState|= MASK_APPROACH; 
+          approachController();
+          behaviorState &= (~MASK_APPROACH);
+          
+          // if the ref is reached, wallFollow
+          if (fabs(ref - meas) < 0.5) {
+            chassis.turnFor(WALL_FOLLOW_TURNANGLE, WALL_FOLLOW_TURNRATE, true);
+            behaviorState|= MASK_WALLFOLLOW;
+            wallFollowController();
+            behaviorState&= (~MASK_WALLFOLLOW);
+          }
+          
+        }
+
+        // =================================
+
+        // behaviorState|= MASK_WALLFOLLOW;
+        // wallFollowController();
+        // behaviorState&= (~MASK_WALLFOLLOW);
+
+        // behaviorState|= MASK_APPROACH; 
+        // approachController();
+        // behaviorState &= (~MASK_APPROACH);
+
+        // behaviorState|= MASK_WANDER;
+        // wanderController();
+        // behaviorState&= MASK_WANDER;
+
+        // =================================
 
       } else {
         delay(5);
