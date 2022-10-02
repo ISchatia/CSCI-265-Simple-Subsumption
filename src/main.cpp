@@ -93,6 +93,8 @@ bool wallFollowActivated= false;
 
 int testIteration= 0;
 
+bool hasNotAdjusted = true;
+
 // TODO:   global vars for IR decoder, RangeFinder,
 //         IR reflectance, and Chassis
 Chassis chassis(WHEEL_DIAMETER, ENCODER_COUNTS_PER_REV, DIST_BETWEEN_WHEELS);
@@ -369,6 +371,7 @@ void loop() {
 
         // if meas is greater than 9 in, wander
         if (meas > ref + 3) {
+          hasNotAdjusted = true;
           behaviorState|= MASK_WANDER;
           wanderController();
           behaviorState&= MASK_WANDER;
@@ -381,7 +384,10 @@ void loop() {
           
           // if the ref is reached, wallFollow
           if (fabs(ref - meas) < 0.5) {
-            chassis.turnFor(WALL_FOLLOW_TURNANGLE, WALL_FOLLOW_TURNRATE, true);
+            if (hasNotAdjusted) {
+              chassis.turnFor(WALL_FOLLOW_TURNANGLE, WALL_FOLLOW_TURNRATE, true);
+              hasNotAdjusted = false;
+            }
             behaviorState|= MASK_WALLFOLLOW;
             wallFollowController();
             behaviorState&= (~MASK_WALLFOLLOW);
